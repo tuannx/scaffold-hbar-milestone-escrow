@@ -1,0 +1,95 @@
+{
+  "create-scaffold-hbar": {
+    "capabilities": {
+      "frontend": [
+        "nextjs-app"
+      ],
+      "packageManager": [
+        "npm",
+        "yarn"
+      ],
+      "solidityFramework": [
+        "hardhat"
+      ]
+    },
+    "defaults": {
+      "frontend": "nextjs-app",
+      "packageManager": "npm",
+      "solidityFramework": "hardhat"
+    },
+    "envVars": [
+      {
+        "description": "packages/hardhat/.env, optional. Chainlink AggregatorV3 feed used by MilestoneEscrow. Defaults: local networks deploy a MockPriceFeed; other networks use the Hedera testnet HBAR/USD feed.",
+        "key": "PRICE_FEED_ADDRESS"
+      },
+      {
+        "description": "packages/hardhat/.env, optional. Max Chainlink round age accepted at funding time (default 10800). Funding reverts with StalePrice beyond this.",
+        "key": "MAX_STALENESS_SECONDS"
+      },
+      {
+        "description": "packages/nextjs/.env.local, server-only, optional. Operator account (0.0.x) for the HCS audit mirror. Leave unset to run audit-disabled.",
+        "key": "HEDERA_OPERATOR_ID"
+      },
+      {
+        "description": "packages/nextjs/.env.local, server-only, optional. ECDSA private key (hex) for HEDERA_OPERATOR_ID. Never commit, never expose to the browser.",
+        "key": "HEDERA_OPERATOR_KEY"
+      },
+      {
+        "description": "packages/nextjs/.env.local, server-only, optional. HCS topic (0.0.x) receiving escrow lifecycle messages. Create it with: npm run audit:create-topic -w @sh/nextjs",
+        "key": "HEDERA_AUDIT_TOPIC_ID"
+      },
+      {
+        "description": "packages/nextjs/.env.local, server-only, optional. testnet (default) or mainnet for the HCS audit mirror.",
+        "key": "HEDERA_NETWORK"
+      }
+    ],
+    "outro": {
+      "sections": [
+        {
+          "steps": [
+            {
+              "label": "Start the local fork chain",
+              "command": "{run:hardhat:chain}"
+            },
+            {
+              "label": "Deploy to it (seeds a $0.10 mock Chainlink feed locally)",
+              "command": "{run:hardhat:deploy} -- --network localhost"
+            },
+            {
+              "label": "Start the frontend",
+              "command": "{run:next:dev}"
+            },
+            {
+              "label": "Run the contract tests",
+              "text": "From packages/hardhat: npx hardhat test test/MilestoneEscrow.test.ts (offline, deterministic, no credentials)."
+            }
+          ],
+          "title": "Run it locally (no Hedera account needed)"
+        },
+        {
+          "steps": [
+            {
+              "label": "Fund a deployer",
+              "text": "Generate an account (npm run hardhat:account:generate), then fund its EVM address with 100 testnet HBAR at portal.hedera.com/faucet."
+            },
+            {
+              "command": "npm run hardhat:deploy -- --network hederaTestnet",
+              "label": "Deploy against the live Chainlink HBAR/USD feed"
+            },
+            {
+              "label": "Optional HCS audit mirror",
+              "text": "Set HEDERA_OPERATOR_ID / HEDERA_OPERATOR_KEY in packages/nextjs/.env.local, run npm run audit:create-topic -w @sh/nextjs, then set HEDERA_AUDIT_TOPIC_ID from the output."
+            }
+          ],
+          "title": "Deploy to Hedera testnet"
+        }
+      ]
+    },
+    "requirements": {
+      "node": ">=20.18.3"
+    }
+  },
+  "description": "USD-priced milestone escrow settled in HBAR on Hedera. Chainlink HBAR/USD prices every funding on-chain and funding reverts on a stale or incomplete round; escrow lifecycle events can mirror to an HCS audit topic. Next.js + Hardhat monorepo.",
+  "name": "milestone-escrow",
+  "version": "1.0.0"
+}

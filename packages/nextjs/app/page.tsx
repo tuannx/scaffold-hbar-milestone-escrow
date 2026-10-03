@@ -1,162 +1,70 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { HederaPortalFaucet } from "@scaffold-hbar-ui/components";
 import type { NextPage } from "next";
 import { useAccount } from "wagmi";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { CreateEscrowForm } from "~~/components/milestone/CreateEscrowForm";
+import { EscrowPanel, LivePriceCard } from "~~/components/milestone/EscrowPanel";
 import { HederaAddress } from "~~/components/scaffold-hbar";
 import { useTargetNetwork } from "~~/hooks/scaffold-hbar";
 
 const Home: NextPage = () => {
-  const { address: connectedAddress, status } = useAccount();
+  const { address: connectedAddress } = useAccount();
   const { targetNetwork } = useTargetNetwork();
 
-  const isReconnecting = status === "reconnecting" || status === "connecting";
-  const isConnected = status === "connected" && connectedAddress;
-
   return (
-    <>
-      <div className="flex items-center flex-col grow">
-        <div className="hedera-gradient dark:bg-none dark:bg-hedera-charcoal w-full py-16 px-5">
-          <div className="flex flex-col items-center max-w-2xl mx-auto">
-            <Image
-              src="/Hedera-Icon-White.svg"
-              alt="Hedera icon"
-              width={80}
-              height={80}
-              className="mb-6 hidden dark:block"
-            />
-            <Image src="/Hedera-Icon-Dark.svg" alt="Hedera icon" width={80} height={80} className="mb-6 dark:hidden" />
-            <div className="flex flex-col items-center gap-1 mb-4">
-              <span className="block text-lg font-medium tracking-widest uppercase text-white/80 dark:text-white/60">
-                Built on Hedera
-              </span>
-              <span className="block text-lg font-medium tracking-widest uppercase text-white/80 dark:text-white/60">
-                For
-              </span>
-              <Image
-                src="/Hedera-Wordmark-Lockup-White.svg"
-                alt="Hedera"
-                width={240}
-                height={48}
-                className="mt-1 hidden dark:block"
-              />
-              <Image
-                src="/Hedera-Wordmark-Lockup-Dark.svg"
-                alt="Hedera"
-                width={240}
-                height={48}
-                className="mt-1 dark:hidden"
-              />
+    <div className="flex flex-col grow">
+      <div className="hedera-gradient dark:bg-none dark:bg-hedera-charcoal w-full py-12 px-5">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-sm font-semibold tracking-widest uppercase text-white/80 dark:text-white/60">
+            Scaffold-HBAR Template
+          </p>
+          <h1 className="text-4xl font-bold text-white mt-2">USD Milestone Escrow, settled in HBAR</h1>
+          <p className="text-white/85 dark:text-white/70 mt-3">
+            Freelance milestones priced in USD, funded and released in HBAR at the live Chainlink HBAR/USD price.
+            Funding reverts on a stale or incomplete feed, so the price both parties see is the price the contract
+            enforces.
+          </p>
+          {connectedAddress && (
+            <div className="mt-4 flex justify-center">
+              <HederaAddress address={connectedAddress} chain={targetNetwork} />
             </div>
-          </div>
+          )}
         </div>
+      </div>
 
-        <div className="w-full max-w-4xl mx-auto px-5 -mt-8">
-          <div className="bg-base-100 rounded-2xl shadow-lg p-8">
-            {isReconnecting ? (
-              <div className="flex flex-col items-center gap-2">
-                <p className="font-semibold text-sm text-base-content/60 uppercase tracking-wider m-0">Connecting…</p>
-                <div className="h-8 w-48 rounded bg-base-200 animate-pulse" aria-hidden />
-              </div>
-            ) : isConnected ? (
-              <div className="flex flex-col items-center gap-2">
-                <p className="font-semibold text-sm text-base-content/60 uppercase tracking-wider m-0">
-                  Connected Address
-                </p>
-                <HederaAddress address={connectedAddress} chain={targetNetwork} />
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <p className="font-semibold text-sm text-base-content/60 uppercase tracking-wider m-0">
-                  Connect your wallet to get started
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="w-full max-w-4xl mx-auto px-5 mt-8 pb-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-base-100 rounded-2xl shadow-md p-8 text-center flex flex-col items-center hover:shadow-lg transition-shadow border border-base-300">
-              <div className="w-14 h-14 rounded-full hedera-gradient flex items-center justify-center mb-4">
-                <BugAntIcon className="h-7 w-7 text-white" />
-              </div>
-              <h3 className="font-bold text-lg mb-2">Debug Contracts</h3>
-              <p className="text-base-content/70 text-sm m-0 mb-6">
-                Tinker with your smart contracts and test interactions in real time.
-              </p>
-              <Link href="/debug" passHref className="btn btn-primary btn-sm">
-                Open Debug
-              </Link>
-            </div>
-
-            <div className="bg-base-100 rounded-2xl shadow-md p-8 text-center flex flex-col items-center border border-base-300 relative">
-              <div className="w-14 h-14 rounded-full hedera-gradient flex items-center justify-center mb-4">
-                <MagnifyingGlassIcon className="h-7 w-7 text-white" />
-              </div>
-              <h3 className="font-bold text-lg mb-2">Block Explorer</h3>
-              <p className="text-base-content/70 text-sm m-0 mb-6">
-                Explore transactions, addresses, and contract activity on Hedera.
-              </p>
-              <Link href="/blockexplorer" passHref className="btn btn-primary btn-sm">
-                Open Block Explorer
-              </Link>
-            </div>
-          </div>
-
-          <div className="mt-8 bg-base-100 rounded-2xl shadow-md p-8 border border-base-300">
-            <h3 className="font-bold text-lg mb-4 text-center">Quick Start</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="flex items-start gap-3">
-                <span className="font-bold text-primary text-lg leading-none mt-0.5">1</span>
-                <div>
-                  <p className="m-0 font-medium">Edit the frontend</p>
-                  <code className="text-xs bg-base-200 px-2 py-1 rounded">packages/nextjs/app/page.tsx</code>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="font-bold text-primary text-lg leading-none mt-0.5">2</span>
-                <div>
-                  <p className="m-0 font-medium">Edit your contract</p>
-                  <div className="flex flex-col gap-1">
-                    <code className="text-xs bg-base-200 px-2 py-1 rounded">
-                      packages/hardhat/contracts/HederaToken.sol
-                    </code>
-                    <code className="text-xs bg-base-200 px-2 py-1 rounded">
-                      packages/foundry/contracts/HederaToken.sol
-                    </code>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="font-bold text-primary text-lg leading-none mt-0.5">3</span>
-                <div>
-                  <p className="m-0 font-medium">Get testnet HBAR</p>
-                  <HederaPortalFaucet variant="link" label="portal.hedera.com/faucet" showIcon={false} />
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="font-bold text-primary text-lg leading-none mt-0.5">4</span>
-                <div>
-                  <p className="m-0 font-medium">Deploy to Hedera</p>
-                  <div className="flex flex-col gap-1">
-                    <code className="text-xs bg-base-200 px-2 py-1 rounded">
-                      yarn hardhat:deploy --network hederaTestnet
-                    </code>
-                    <code className="text-xs bg-base-200 px-2 py-1 rounded">
-                      yarn foundry:deploy --network hedera_testnet
-                    </code>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <div className="w-full max-w-4xl mx-auto px-5 py-8 space-y-6">
+        <LivePriceCard />
+        <CreateEscrowForm />
+        <EscrowPanel />
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <h2 className="card-title">How it fits together</h2>
+            <ul className="list-disc pl-5 space-y-1 text-sm">
+              <li>
+                <strong>Chainlink (Hedera testnet feed)</strong> prices every funding on-chain. Remove it and the escrow
+                has no USD-to-HBAR conversion and cannot be funded. That is the load-bearing integration, proven by the
+                Hardhat tests named <code>fundRevertsWhenPriceIsStale</code> and{" "}
+                <code>fundRepricesAtFundingTimeAndRefundsExcess</code>.
+              </li>
+              <li>
+                <strong>MilestoneEscrow (Solidity on Hedera)</strong> holds the HBAR, enforces client/worker roles and
+                the deadline refund path, and emits every lifecycle event.
+              </li>
+              <li>
+                <strong>HCS audit topic (optional)</strong> mirrors those events to a Hedera Consensus Service topic via{" "}
+                <code>POST /api/audit</code> when an operator is configured, so auditors can read a consensus-ordered
+                log from any mirror node. Off by default; the app runs on contract events alone.
+              </li>
+              <li>
+                Local development needs no account: the deploy script seeds a mock feed at $0.10 on local networks.
+                Testnet uses the real feed. See the README for the one-command scaffold and the testnet deployment
+                proof.
+              </li>
+            </ul>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

@@ -1,78 +1,182 @@
-# Scaffold-HBAR — Blank starter
+# Milestone Escrow — a Scaffold-HBAR template
 
-Minimal Hedera dApp baseline: Next.js, Hardhat or Foundry, and Hedera networks (testnet, mainnet, local fork). No opinionated product UI — you add the app on top.
+USD-priced milestone escrow, settled in HBAR on Hedera.
 
-CLI key: `blank` (branch `templates/blank-template`).
-
-The full product guide — CLI flags, npm run vs npm, deploy, and verify — lives in [Scaffold HBAR on Hedera docs](https://docs.hedera.com/solutions/tools/scaffold-hbar/index). This README is what is specific to **this** template.
-
-## What's in this template
-
-- Next.js App Router with wallet connect, **Debug Contracts**, and a local block explorer
-- Sample HTS contracts (`HederaToken`, `HtsTokenCreator`) so Debug Contracts has something to call
-- Hardhat and Foundry packages (the CLI can drop one)
-- Hashio RPC + Mirror Node config for Hedera testnet and mainnet
-- Package manager: npm (recommended) or npm — see `template.json`
-
-Create a project from this template:
+A client and a worker agree a milestone in USD (say $100 for "design approved"). The client
+funds the escrow in HBAR, converted at the **live Chainlink HBAR/USD price at the moment of
+funding**. When the work is accepted the client releases; if the deadline passes, either party
+can refund the client. Every lifecycle step is a contract event, and can optionally be mirrored
+to a Hedera Consensus Service (HCS) topic as a consensus-ordered audit log.
 
 ```bash
-npm run create scaffold-hbar@latest -- --template blank
+npm create scaffold-hbar@latest -- --template tuannx/scaffold-hbar-milestone-escrow
 ```
 
-`npx create-scaffold-hbar@latest --template blank` is equivalent. The CLI also asks for frontend, Solidity framework, network, and package manager.
+That is the whole install path. Local development needs **no Hedera account and no
+credentials**: the deploy script seeds a mock Chainlink feed at $0.10 on local networks.
 
-## Work from this repository
+## Why this template exists
 
-This branch uses npm run workspaces, so clone-and-run needs npm. Apps created with the CLI can use npm (default) or npm; see the [docs](https://docs.hedera.com/solutions/tools/scaffold-hbar/index).
+Freelance and contractor milestones are quoted in fiat but settled in crypto. The naive
+approach hard-codes an HBAR amount at creation time, so one party silently absorbs the price
+move between agreement and funding. This template makes the oracle do the work:
 
-### Prerequisites
+| Claim | Evidence (test name, `packages/hardhat/test/MilestoneEscrow.test.ts`) |
+|---|---|
+| Funding re-prices at funding time, not creation time | `fundRepricesAtFundingTimeAndRefundsExcess` |
+| A stale Chainlink round blocks funding | `fundRevertsWhenPriceIsStale` |
+| An incomplete or non-positive round blocks funding | `fundRevertsOnIncompleteRound`, `fundRevertsOnNonPositivePrice` |
+| Underpaying the live quote reverts | `fundUnderQuoteReverts` |
+| Release pays the worker the funded amount | `releasePaysWorkerFundedAmount` |
+| Only the client can release; deadline expiry refunds the client | `releaseRevertsForNonClient`, `refundAfterDeadlineReturnsClientFunds`, `refundBeforeDeadlineReverts` |
 
-- [Node.js](https://nodejs.org/) ≥ 20.18.3
-- [Git](https://git-scm.com/) with `user.name` and `user.email` configured
-- [npm](https://www.npmjs.com/) (default; required if you clone this repo) or npm run if you scaffolded with the CLI. For npm, install via Corepack:
-  ```bash
-  corepack enable && corepack prepare npm@stable --activate
-  ```
-- **If using Foundry:** [Foundry](https://book.getfoundry.sh/getting-started/installation) (`forge`, `cast`, `anvil`)
+**The Chainlink integration is load-bearing.** Delete the feed and `quoteHbarWei` has no
+price, `fundEscrow` cannot run, and the USD amount the worker agreed to has no HBAR
+equivalent. It is not a price ticker displayed next to the app; the contract enforces it.
 
-### Quick start
+## Architecture
+
+```
+packages/hardhat/contracts/MilestoneEscrow.sol
+  createEscrow(worker, usdMicros, deadline, referenceHash)   client opens a milestone
+  quoteHbarWei(usdMicros)  -> live Chainlink price, fresh or revert
+  fundEscrow(id) payable   -> re-prices, escrows the quote, refunds overpayment
+  releaseEscrow(id)        -> client pays the worker
+  refundExpiredEscrow(id)  -> either party refunds the client after the deadline
+  cancelEscrow(id)         -> client cancels an unfunded escrow
+
+Chainlink AggregatorV3 (HBAR/USD)             Hedera services in play
+  testnet 0x59bC155EB6c6C415fE43255aF66EcF0523c92B4a   Solidity escrow contract on Hedera
+  (verified live 2026-10-03, see below)                  HCS topic audit mirror (optional)
+
+packages/nextjs
+  app/page.tsx                 price card, create form, fund/release panel
+  components/milestone/*       the escrow UI (scaffold hooks, no raw wagmi calls)
+  services/hedera/auditLog.ts  server-side HCS submit (fail-soft when unconfigured)
+  app/api/audit/route.ts       POST /api/audit mirrors lifecycle events to the topic
+```
+
+USD amounts are stored in micro-USD (`1e6` = $1.00). HBAR amounts are wei (`1e18` = 1 HBAR),
+matching Hedera JSON-RPC `msg.value` semantics. The milestone reference is stored as a
+`bytes32` hash only — the underlying document never touches the chain.
+
+## Quick start (local, offline)
+
+Prerequisites: Node `>=20.18.3`, npm, git.
 
 ```bash
-npm install
+npm create scaffold-hbar@latest -- my-escrow --template tuannx/scaffold-hbar-milestone-escrow --ci --solidity-framework hardhat --package-manager npm
+cd my-escrow
 
-# Terminal 1: local Hedera-forked node
-npm run hardhat:chain
-
-# Terminal 2: deploy to that node (8545)
-npm run hardhat:deploy --network localhost
-
-# Terminal 3: Next.js app
-npm run next:start
+npm run hardhat:chain                       # local Hedera-forked node, terminal 1
+npm run hardhat:deploy -- --network localhost
+npm run next:dev                            # http://localhost:3000, terminal 2
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and use the **Debug Contracts** page.
-
-Frontend only (no local chain):
+On local networks the deploy script deploys `MockPriceFeed` at $0.10 and wires the escrow to
+it, so create → fund → release works end-to-end with the burner wallet. Contract tests are
+deterministic and offline:
 
 ```bash
-npm install
-npm run next:dev
+cd packages/hardhat
+npx hardhat test test/MilestoneEscrow.test.ts   # 12 passing
 ```
 
-`npm run hardhat:deploy` without `--network localhost` targets the in-process `hardhat` network, not the long-running fork. Local Hardhat and Foundry workflows are in [`packages/hardhat/README.md`](packages/hardhat/README.md) and [`packages/foundry/README.md`](packages/foundry/README.md). Deploy and verify on testnet/mainnet: [Hedera docs](https://docs.hedera.com/solutions/tools/scaffold-hbar/index#deploying-to-testnet).
+## Deploy to Hedera testnet
 
-## Project layout
+1. Create a deployer and fund it (100 testnet HBAR, no signup — the faucet auto-creates an
+   account for an EVM address):
 
-- **packages/hardhat** — Hardhat config, contracts, `deploy/` scripts, tests
-- **packages/foundry** — Forge config, contracts, `script/` deploy scripts, tests
-- **packages/nextjs** — Next.js app, RainbowKit, wagmi, scaffold config
+   ```bash
+   npm run hardhat:account:generate
+   npm run hardhat:account        # note the EVM address, paste it at portal.hedera.com/faucet
+   ```
 
-Network and RPC URLs are in `packages/hardhat/hardhat.config.ts` and `packages/foundry/foundry.toml` respectively.
+2. Deploy against the live feed:
 
-## Links
+   ```bash
+   npm run hardhat:deploy -- --network hederaTestnet
+   npm run next:dev
+   ```
 
-- [Scaffold HBAR docs](https://docs.hedera.com/solutions/tools/scaffold-hbar/index)
-- [create-scaffold-hbar](https://github.com/hedera-dev/create-scaffold-hbar) — CLI
-- [Hedera Portal faucet](https://portal.hedera.com/faucet)
-- [HashScan](https://hashscan.io/)
+   The default testnet feed is `0x59bC155EB6c6C415fE43255aF66EcF0523c92B4a` (HBAR/USD).
+   We read it live while writing this template on 2026-10-03 13:53:58 UTC: answer
+   `10164948` ($0.10164948), round fresh. Override with `PRICE_FEED_ADDRESS` for a different
+   network or pair. `packages/nextjs/contracts/deployedContracts.ts` is regenerated by the
+   deploy; do not edit it by hand.
+
+### Testnet proof
+
+- Contract: _filled in after the funded deployment, before submission_
+- Deployment transaction (HashScan): _pending_
+- A funding/release transaction (HashScan): _pending_
+
+## Optional: HCS audit mirror
+
+Contract events are the source of truth. If you also want a Hedera-native, consensus-ordered
+log that any mirror node can read without indexing contract logs:
+
+```bash
+# packages/nextjs/.env.local (server-side only, never commit real keys)
+HEDERA_OPERATOR_ID=0.0.x
+HEDERA_OPERATOR_KEY=<ecdsa hex>
+
+npm run audit:create-topic -w @sh/nextjs   # prints HEDERA_AUDIT_TOPIC_ID=0.0.x
+# copy the printed id into .env.local as HEDERA_AUDIT_TOPIC_ID, restart next:dev
+```
+
+The topic is created with the operator as **submit key** — a keyless topic would be
+world-writable and worthless as an audit log. With nothing configured, `GET /api/audit`
+returns `{ "configured": false }` and the UI simply skips mirroring. Keys are read on the
+server only and never reach the browser.
+
+## Environment variables
+
+Declared in `template.json` and in each package's `.env.example`. Nothing is required for
+local development.
+
+| Variable | Package | Purpose |
+|---|---|---|
+| `PRICE_FEED_ADDRESS` | hardhat | Chainlink feed override (default: Hedera testnet HBAR/USD) |
+| `MAX_STALENESS_SECONDS` | hardhat | Max accepted Chainlink round age at funding (default `10800`) |
+| `HEDERA_OPERATOR_ID` | nextjs | HCS audit operator account |
+| `HEDERA_OPERATOR_KEY` | nextjs | HCS audit operator ECDSA key, server-only |
+| `HEDERA_AUDIT_TOPIC_ID` | nextjs | HCS topic created by `audit:create-topic` |
+| `HEDERA_NETWORK` | nextjs | `testnet` (default) or `mainnet` for the audit mirror |
+
+## Customising
+
+- **Different price pair:** point `PRICE_FEED_ADDRESS` at any AggregatorV3 feed; the quote
+  math reads `decimals()` from the feed, so no code change is needed.
+- **Tighter freshness:** lower `MAX_STALENESS_SECONDS`. The 3h default tolerates the testnet
+  feed's update cadence. Do not raise it silently — the staleness window is the security
+  parameter of this template.
+- **Mainnet:** deploy with `--network hederaMainnet` and set a mainnet feed address. The
+  escrow holds real HBAR; the test suite is the specification, run it first.
+
+## Limitations (stated, not hidden)
+
+- One escrow = one milestone. Multi-milestone projects are multiple escrows; a project
+  wrapper contract is the natural extension and is intentionally not included.
+- No dispute arbitration. The client's release and the post-deadline refund are the whole
+  resolution model; anything richer needs an arbiter role and a different trust analysis.
+- Funding quotes are honoured only while the feed is fresh. If Chainlink stops updating,
+  funding stops too — that is the intended failure mode, and the UI shows the feed timestamp
+  so users can see it happening.
+- `MockPriceFeed` (in `contracts/mocks/`) is a test double for local runs and unit tests. It
+  is deployed automatically on local networks only. Never point `PRICE_FEED_ADDRESS` at a mock
+  on a live network.
+
+## Layout
+
+```
+template.json                 scaffold-hbar manifest (capabilities, defaults, env, outro)
+packages/hardhat/             MilestoneEscrow + MockPriceFeed, deploy script, test suite
+packages/nextjs/              Next.js app, escrow UI, /api/audit HCS mirror
+AGENTS.md                     briefing for AI coding agents working in this template
+```
+
+## Licence
+
+MIT. The escrow, tests, UI, and docs in this repository are original work built on the
+Scaffold-HBAR starter (see `LICENCE`).

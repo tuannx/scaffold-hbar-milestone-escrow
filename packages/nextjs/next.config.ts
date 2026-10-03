@@ -13,6 +13,12 @@ const nextConfig: NextConfig = {
   },
   webpack: (config, { dev }) => {
     config.resolve.fallback = { fs: false, net: false, tls: false };
+    // wagmi's Coinbase connector statically imports @coinbase/cdp-sdk, which
+    // imports the optional peer @x402/evm. npm does not install that peer, so
+    // a fresh npm scaffold fails `next build` with "Can't resolve '@x402/evm'".
+    // This template does not use the Coinbase connector, so stub every
+    // @x402/* module (evm, svm, core, ...) instead of chasing them one by one.
+    config.resolve.alias = { ...config.resolve.alias, "@x402": false };
     config.externals.push("pino-pretty", "lokijs", "encoding");
     if (dev) {
       config.watchOptions = {

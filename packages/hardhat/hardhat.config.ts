@@ -21,9 +21,13 @@ import generateTsAbis from "./scripts/generateTsAbis";
 // Hedera JSON-RPC URL (testnet default). Set HEDERA_RPC_URL in .env for mainnet.
 const hederaRpcUrl = process.env.HEDERA_RPC_URL || "https://testnet.hashio.io/api";
 
-// Deployer key: run `npm run account:generate` or `npm run account:import`, or set __RUNTIME_DEPLOYER_PRIVATE_KEY at runtime.
-const deployerPrivateKey =
-  process.env.__RUNTIME_DEPLOYER_PRIVATE_KEY ?? "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+// Deployer key: set at runtime by scripts/runHardhatDeployWithPK.ts, which decrypts
+// DEPLOYER_PRIVATE_KEY_ENCRYPTED from .env. No fallback key is committed: a fresh
+// scaffold must pass secret scans, and a hardcoded key (even a public test key)
+// fails them. Live-network deploys without the runtime key get an empty account list
+// and Hardhat fails loudly instead of deploying from a known key.
+const deployerPrivateKey = process.env.__RUNTIME_DEPLOYER_PRIVATE_KEY;
+const deployerAccounts = deployerPrivateKey ? [deployerPrivateKey] : [];
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -56,12 +60,12 @@ const config: HardhatUserConfig = {
     },
     hederaTestnet: {
       url: "https://testnet.hashio.io/api",
-      accounts: [deployerPrivateKey],
+      accounts: deployerAccounts,
       chainId: 296,
     },
     hederaMainnet: {
       url: "https://mainnet.hashio.io/api",
-      accounts: [deployerPrivateKey],
+      accounts: deployerAccounts,
       chainId: 295,
     },
   },

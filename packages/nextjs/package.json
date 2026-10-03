@@ -9,7 +9,8 @@
     "format": "prettier --write . '!(node_modules|.next|contracts)/**/*'",
     "lint": "next lint",
     "serve": "next start",
-    "start": "next dev"
+    "start": "next dev",
+    "audit:create-topic": "node scripts/create-audit-topic.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.5",

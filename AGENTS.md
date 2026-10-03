@@ -1,138 +1,85 @@
 # Agent instructions
 
-Briefing for coding agents in this app (Cursor, Claude Code, Codex). Claude Code loads it through `CLAUDE.md`.
+Briefing for coding agents (Cursor, Claude Code, Codex) working in this template.
+`CLAUDE.md` points here. One source of truth.
 
-This is a Scaffold-HBAR dApp: Next.js App Router, wallet connect, Debug Contracts, and Hedera networks (testnet, mainnet, local fork). The CLI may have left only Hardhat or only Foundry.
+## What this is
 
-Use the package manager this project was created with (`packageManager` in the root `package.json`, or the lockfile). Examples use `npm`; if the app was created with npm, swap `npm <script>` for `npm run <script>`.
+A Scaffold-HBAR external template: a USD-priced milestone escrow settled in HBAR.
+`MilestoneEscrow` prices funding through a Chainlink AggregatorV3 feed at funding time and
+reverts on stale, incomplete, or non-positive rounds. Escrow lifecycle events can be mirrored
+to an HCS topic through `POST /api/audit`. Next.js frontend, Hardhat contracts, npm workspaces.
 
-## Which Solidity package
+## Invariants — do not break these
 
-- `packages/hardhat` exists → Hardhat (`hardhat-deploy`)
-- `packages/foundry` exists → Foundry (Forge scripts)
-- `packages/nextjs` is always the frontend (App Router, RainbowKit, Wagmi, Viem, DaisyUI)
+1. **Funding always re-prices.** `fundEscrow` must obtain its amount from `quoteHbarWei`
+   (which calls `getPrice`) in the same transaction. Never store a creation-time HBAR amount
+   and fund against it later; that deletes the point of the template.
+2. **Fresh-or-revert.** `getPrice` reverts on `answeredInRound < roundId`, `updatedAt == 0`,
+   `answer <= 0`, or age above `maxStalenessSeconds`. Do not catch, default, or widen the
+   staleness window to make a failing flow pass.
+3. **State before payout.** Escrow status changes before any HBAR transfer (`_pay` last).
+4. **The mock is not the feed.** `MockPriceFeed` is deployed automatically only on `hardhat`
+   and `localhost` networks. Live networks use `PRICE_FEED_ADDRESS` or the Hedera testnet
+   HBAR/USD default in `deploy/00_deploy_milestone_escrow.ts`.
+5. **Secrets stay server-side and uncommitted.** Operator keys live in `packages/nextjs/.env.local`
+   (gitignored) and are read only by `services/hedera/auditLog.ts` and
+   `scripts/create-audit-topic.mjs`. Never prefix them `NEXT_PUBLIC_`, never log them, never
+   put a real key in `.env.example`, the README, or `deployedContracts.ts`.
+6. **No world-writable audit topic.** Topics are created with the operator key as submit key.
 
-Follow only the flavor that is present.
+## Map
+
+| Area | Files |
+|---|---|
+| Escrow contract | `packages/hardhat/contracts/MilestoneEscrow.sol` |
+| Feed interface | `packages/hardhat/contracts/interfaces/AggregatorV3Interface.sol` |
+| Test double | `packages/hardhat/contracts/mocks/MockPriceFeed.sol` (tests/local only) |
+| Deploy | `packages/hardhat/deploy/00_deploy_milestone_escrow.ts` |
+| Tests (the spec) | `packages/hardhat/test/MilestoneEscrow.test.ts` |
+| UI | `packages/nextjs/app/page.tsx`, `packages/nextjs/components/milestone/*` |
+| HCS mirror | `packages/nextjs/services/hedera/auditLog.ts`, `packages/nextjs/app/api/audit/route.ts` |
+| Topic setup | `packages/nextjs/scripts/create-audit-topic.mjs` |
+| Manifest | `template.json` (validated by the create-scaffold-hbar CLI schema) |
+
+`packages/nextjs/contracts/deployedContracts.ts` is **generated** by deploy
+(`scripts/generateTsAbis`). Never edit it by hand; deploy again instead.
 
 ## Commands
 
-Package-prefixed scripts for package-specific work. Keep only truly cross-workspace commands unprefixed.
+npm is the default package manager (`packageManager` in the root `package.json`); yarn works
+with the same scripts via the workspace tool. Run from the repo root unless a package is named.
 
 ```bash
-# Local chain + deploy + frontend (separate terminals)
-npm run hardhat:chain    # Hedera-forked Hardhat node on 8545
-npm run hardhat:deploy --network localhost
-npm run foundry:chain    # Anvil from the Foundry package
-npm run foundry:deploy
-npm run next:start       # http://localhost:3000
+npm run hardhat:chain                         # local fork node (terminal 1)
+npm run hardhat:deploy -- --network localhost # deploys mock feed + escrow locally
+npm run next:dev                              # http://localhost:3000 (terminal 2)
+npm run hardhat:deploy -- --network hederaTestnet
 
-# Frontend only
-npm run next:dev
-
-# Quality / build
-npm run lint
-npm run format
-npm run next:build
-npm run hardhat:compile
-npm run foundry:compile
-
-# Live networks
-npm run hardhat:deploy --network hederaTestnet   # or hederaMainnet
-npm run foundry:deploy --network hedera_testnet  # or hedera_mainnet
-npm run hardhat:verify -- HederaToken testnet [0xAddress]
-npm run foundry:verify:testnet
-
-# Deployer account
-npm run hardhat:account:generate
-npm run hardhat:account:import
-npm run hardhat:account
+cd packages/hardhat && npx hardhat test test/MilestoneEscrow.test.ts
+npm run lint                                  # both workspaces
+npm run next:check-types && npm run next:build
+npm run audit:create-topic -w @sh/nextjs      # one-time HCS topic (needs operator env)
 ```
 
-`npm run hardhat:deploy` without `--network localhost` targets the in-process `hardhat` network, not the long-running fork.
+Hooks in this codebase: `useScaffoldReadContract`, `useScaffoldWriteContract`,
+`useDeployedContractInfo`, `useTargetNetwork` from `~~/hooks/scaffold-hbar`. Next.js imports
+use the `~~` alias. The address input component is `HederaAddressInput` from
+`@scaffold-hbar-ui/components` (it resolves `0.0.x` to an EVM address via
+`onResolvedEvmChange`); use DaisyUI classes for UI.
 
-## Layout
+## When you change something
 
-### Hardhat
-
-- Contracts: `packages/hardhat/contracts/`
-- Deploy scripts: `packages/hardhat/deploy/`
-- Tests: `packages/hardhat/test/`
-- Config: `packages/hardhat/hardhat.config.ts`
-- Tagged deploy: if `deployHederaToken.tags = ["HederaToken"]`, run `npm run hardhat:deploy --tags HederaToken`
-
-### Foundry
-
-- Contracts: `packages/foundry/contracts/`
-- Deploy scripts: `packages/foundry/script/` (`Deploy.s.sol`, `DeployHederaToken.s.sol`, `DeployHtsTokenCreator.s.sol`)
-- Tests: `packages/foundry/test/`
-- Config: `packages/foundry/foundry.toml`
-- One contract: `npm run foundry:deploy --file DeployHederaToken.s.sol`
-
-### After deploy
-
-ABIs and addresses are written to `packages/nextjs/contracts/deployedContracts.ts`. Put third-party contracts in `packages/nextjs/contracts/externalContracts.ts`.
-
-Sample contracts on this starter: `HederaToken` (ERC-20) and `HtsTokenCreator` (HTS precompile at `0x167`).
-
-## Frontend contract interaction
-
-Hooks live in `packages/nextjs/hooks/scaffold-hbar`. Use the names that exist in the codebase:
-
-- `useScaffoldReadContract` — not `useScaffoldContractRead`
-- `useScaffoldWriteContract` — not `useScaffoldContractWrite`
-
-Also: `useScaffoldWatchContractEvent`, `useScaffoldEventHistory`, `useDeployedContractInfo`, `useScaffoldContract`, `useTransactor`.
-
-```typescript
-const { data: balance } = useScaffoldReadContract({
-  contractName: "HederaToken",
-  functionName: "balanceOf",
-  args: [connectedAddress],
-});
-
-const { writeContractAsync, isPending } = useScaffoldWriteContract({
-  contractName: "HederaToken",
-});
-
-await writeContractAsync({
-  functionName: "mint",
-  args: [connectedAddress, parseEther("1")],
-});
-```
-
-`HederaToken.mint` is `onlyOwner`. For HTS creation, `HtsTokenCreator.createToken` is payable (HTS fee via `msg.value`) and emits `TokenCreated`.
-
-### UI
-
-Use `@scaffold-hbar-ui/components` for web3 UI: `Address`, `AddressInput`, `Balance`, `EtherInput`, `IntegerInput`.
-
-Use DaisyUI classes, not raw Tailwind when a DaisyUI component exists:
-
-```tsx
-<button className="btn btn-primary">Connect</button>
-```
-
-### Networks
-
-- Hardhat: `packages/hardhat/hardhat.config.ts` (`hederaTestnet` 296, `hederaMainnet` 295)
-- Foundry: `packages/foundry/foundry.toml` (`hedera_testnet`, `hedera_mainnet`)
-- Next.js: `packages/nextjs/scaffold.config.ts` (target networks, polling, RPC overrides, WalletConnect)
-
-## Style
-
-| Style | Use |
-| --- | --- |
-| `UpperCamelCase` | types, components |
-| `lowerCamelCase` | variables, functions |
-| `CONSTANT_CASE` | constants |
-| `snake_case` | Hardhat deploy files and Foundry scripts |
-
-Next.js imports use the `~~` alias:
-
-```tsx
-import { useTargetNetwork } from "~~/hooks/scaffold-hbar";
-```
-
-App Router pages live under `packages/nextjs/app/`. Add `"use client"` when the page uses hooks.
-
-Prefer `type` over `interface`. No `T` prefix on types. Let TypeScript infer when it can. Comments should add information.
+- **Contract behaviour:** write or update the test first, in the naming style of the existing
+  suite (the test name is the claim, e.g. `fundRevertsWhenPriceIsStale`). The README's
+  claim→evidence table must stay true: if you rename a test, update the table.
+- **Manifest:** if you add an env var, add it to `template.json` `envVars`, the matching
+  `.env.example`, and the README table in the same change. Keep `capabilities`/`defaults`
+  truthful: this template is Hardhat-only, nextjs-app-only.
+- **UI claims:** the page copy states behaviour the contract enforces (fresh-or-revert,
+  refund after deadline). Do not write UI text the contract does not implement.
+- **Before calling work done:** `npx hardhat test test/MilestoneEscrow.test.ts` passes,
+  `npm run lint` passes, `npm run next:build` passes, and a fresh scaffold of this repo
+  (`npm create scaffold-hbar@latest -- --template <owner>/<repo>`) installs, lints, builds,
+  and serves `/` and `/api/audit`. Those are the bounty gate checks; run them, do not assert
+  them.
