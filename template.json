@@ -70,7 +70,7 @@
           "steps": [
             {
               "label": "Fund a deployer",
-              "text": "Generate an account (npm run hardhat:account:generate), then fund its EVM address with 100 testnet HBAR at portal.hedera.com/faucet."
+              "text": "Generate an account (npm run hardhat:account:generate), then fund its EVM address with testnet HBAR at portal.hedera.com/faucet."
             },
             {
               "command": "npm run hardhat:deploy -- --network hederaTestnet",

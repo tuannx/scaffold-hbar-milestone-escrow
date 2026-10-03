@@ -5,8 +5,11 @@ import { ethers } from "hardhat";
 const PRICE_010 = 10_000_000n; // $0.10 with 8 feed decimals
 const PRICE_020 = 20_000_000n; // $0.20
 const USD_100 = 100_000_000n; // $100.00 in micro-USD
-const HBAR_1000 = ethers.parseEther("1000");
-const HBAR_500 = ethers.parseEther("500");
+// Hedera's EVM accounts in tinybar inside contracts (1 HBAR = 1e8). Hardhat's
+// local EVM treats the same raw numbers as wei; the unit contract is the raw
+// integer the contract sees, which is what these constants pin.
+const HBAR_1000 = 1000n * 100_000_000n;
+const HBAR_500 = 500n * 100_000_000n;
 const STALENESS = 3600;
 
 describe("MilestoneEscrow", function () {
@@ -37,7 +40,7 @@ describe("MilestoneEscrow", function () {
   describe("Pricing (Chainlink is load-bearing)", function () {
     it("quotesUsdInHbarAtLivePrice", async function () {
       const { escrow } = await deployFixture();
-      expect(await escrow.quoteHbarWei(USD_100)).to.equal(HBAR_1000);
+      expect(await escrow.quoteHbarTinybar(USD_100)).to.equal(HBAR_1000);
     });
 
     it("fundRevertsWhenPriceIsStale", async function () {
@@ -80,7 +83,7 @@ describe("MilestoneEscrow", function () {
         [-HBAR_500, HBAR_500],
       );
       const stored = await escrow.getEscrow(0);
-      expect(stored.fundedWei).to.equal(HBAR_500);
+      expect(stored.fundedTinybar).to.equal(HBAR_500);
       expect(stored.fundedPrice).to.equal(PRICE_020);
       expect(stored.status).to.equal(1); // Funded
     });

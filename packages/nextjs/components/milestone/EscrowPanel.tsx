@@ -2,13 +2,23 @@
 
 import { useState } from "react";
 import { Address } from "@scaffold-hbar-ui/components";
-import { formatEther } from "viem";
 import { postAudit } from "~~/components/milestone/CreateEscrowForm";
 import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-hbar";
 import { useTargetNetwork } from "~~/hooks/scaffold-hbar";
 import { notification } from "~~/utils/scaffold-hbar";
 
 const STATUS_LABELS = ["Open", "Funded", "Released", "Refunded", "Cancelled"] as const;
+
+// Hedera unit boundary: the EVM executes in tinybar (1e8 per HBAR), while
+// wagmi/viem sends value in weibar (1e18 per HBAR) and the relay converts.
+// Contract reads are tinybar; the fund transaction converts exactly once here.
+const TINYBAR_PER_HBAR = 100_000_000n;
+const WEIBAR_PER_TINYBAR = 10_000_000_000n;
+const formatTinybar = (tinybar: bigint) => (Number(tinybar) / Number(TINYBAR_PER_HBAR)).toFixed(4);
+const tinybarToWeibar = (tinybar: bigint) => tinybar * WEIBAR_PER_TINYBAR;
+// The scaffold hook types struct address fields as plain `string`; the chain
+// returns checksummed hex addresses, so narrowing once here is safe.
+const asViemAddress = (value: string) => value as `0x${string}`;
 
 export function LivePriceCard() {
   const { data: priceData } = useScaffoldReadContract({
@@ -17,7 +27,7 @@ export function LivePriceCard() {
   });
   const { data: quote100 } = useScaffoldReadContract({
     contractName: "MilestoneEscrow",
-    functionName: "quoteHbarWei",
+    functionName: "quoteHbarTinybar",
     args: [100_000_000n], // $100.00 in micro-USD
   });
 
@@ -32,9 +42,9 @@ export function LivePriceCard() {
           <>
             <p className="text-4xl font-bold">${(Number(price) / 1e8).toFixed(4)}</p>
             <p className="text-sm opacity-70">
-              $100.00 milestone = {quote100 !== undefined ? `${Number(formatEther(quote100)).toFixed(2)} HBAR` : "..."}{" "}
-              at this price. Feed updated {updatedAt ? new Date(Number(updatedAt) * 1000).toLocaleString() : "..."}.
-              Funding reverts if the feed goes stale, so this quote is only honoured while it is fresh.
+              $100.00 milestone = {quote100 !== undefined ? `${formatTinybar(quote100)} HBAR` : "..."} at this price.
+              Feed updated {updatedAt ? new Date(Number(updatedAt) * 1000).toLocaleString() : "..."}. Funding reverts if
+              the feed goes stale, so this quote is only honoured while it is fresh.
             </p>
           </>
         ) : (
@@ -66,7 +76,7 @@ export function EscrowPanel() {
   });
   const { data: quote } = useScaffoldReadContract({
     contractName: "MilestoneEscrow",
-    functionName: "quoteHbarWei",
+    functionName: "quoteHbarTinybar",
     args: [escrow?.usdMicros ?? 0n],
   });
 
@@ -119,18 +129,18 @@ export function EscrowPanel() {
               Status: <span className="badge badge-primary">{status}</span>
             </p>
             <p className="flex items-center gap-2">
-              Client: <Address address={escrow.client} />
+              Client: <Address address={asViemAddress(escrow.client)} />
             </p>
             <p className="flex items-center gap-2">
-              Worker: <Address address={escrow.worker} />
+              Worker: <Address address={asViemAddress(escrow.worker)} />
             </p>
             <p>Milestone: ${(Number(escrow.usdMicros) / 1e6).toFixed(2)} USD</p>
-            <p>Funded: {Number(formatEther(escrow.fundedWei)).toFixed(4)} HBAR</p>
+            <p>Funded: {formatTinybar(escrow.fundedTinybar)} HBAR</p>
             <p>Deadline: {new Date(Number(escrow.deadline) * 1000).toLocaleString()}</p>
             {status === "Open" && (
               <p>
-                Funding now requires {quote !== undefined ? `${Number(formatEther(quote)).toFixed(4)} HBAR` : "..."}{" "}
-                (live Chainlink quote).
+                Funding now requires {quote !== undefined ? `${formatTinybar(quote)} HBAR` : "..."} (live Chainlink
+                quote).
               </p>
             )}
           </div>
@@ -144,7 +154,11 @@ export function EscrowPanel() {
             disabled={isPending || status !== "Open" || quote === undefined}
             onClick={() =>
               run("EscrowFunded", () =>
-                writeContractAsync({ functionName: "fundEscrow", args: [escrowId], value: quote ?? 0n }),
+                writeContractAsync({
+                  functionName: "fundEscrow",
+                  args: [escrowId],
+                  value: quote ? tinybarToWeibar(quote) : 0n,
+                }),
               )
             }
           >

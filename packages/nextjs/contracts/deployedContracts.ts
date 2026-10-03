@@ -5,9 +5,9 @@
 import { GenericContractsDeclaration } from "~~/utils/scaffold-hbar/contract";
 
 const deployedContracts = {
-  31337: {
+  296: {
     MilestoneEscrow: {
-      address: "0x0Ac85d55ebFc7f7b0cF4c13bb3BD6Eaf3909d62d",
+      address: "0x3d2D1E677D272560FF04994098C834d42985e94b",
       abi: [
         {
           inputs: [
@@ -120,7 +120,7 @@ const deployedContracts = {
             },
             {
               internalType: "uint256",
-              name: "amountWei",
+              name: "amountTinybar",
               type: "uint256",
             },
           ],
@@ -147,12 +147,12 @@ const deployedContracts = {
           inputs: [
             {
               internalType: "uint256",
-              name: "requiredWei",
+              name: "requiredTinybar",
               type: "uint256",
             },
             {
               internalType: "uint256",
-              name: "sentWei",
+              name: "sentTinybar",
               type: "uint256",
             },
           ],
@@ -243,7 +243,7 @@ const deployedContracts = {
             {
               indexed: false,
               internalType: "uint256",
-              name: "fundedWei",
+              name: "fundedTinybar",
               type: "uint256",
             },
             {
@@ -274,7 +274,7 @@ const deployedContracts = {
             {
               indexed: false,
               internalType: "uint256",
-              name: "amountWei",
+              name: "amountTinybar",
               type: "uint256",
             },
           ],
@@ -299,7 +299,7 @@ const deployedContracts = {
             {
               indexed: false,
               internalType: "uint256",
-              name: "amountWei",
+              name: "amountTinybar",
               type: "uint256",
             },
           ],
@@ -421,7 +421,7 @@ const deployedContracts = {
                 },
                 {
                   internalType: "uint256",
-                  name: "fundedWei",
+                  name: "fundedTinybar",
                   type: "uint256",
                 },
                 {
@@ -505,7 +505,7 @@ const deployedContracts = {
               type: "uint256",
             },
           ],
-          name: "quoteHbarWei",
+          name: "quoteHbarTinybar",
           outputs: [
             {
               internalType: "uint256",
@@ -544,7 +544,549 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 41307581,
+      deployedOnBlock: 41308974,
+    },
+  },
+  31337: {
+    MilestoneEscrow: {
+      address: "0x0Ac85d55ebFc7f7b0cF4c13bb3BD6Eaf3909d62d",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "priceFeedAddress",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "maxStaleness",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "DeadlineNotReached",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "EscrowNotFound",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint80",
+              name: "roundId",
+              type: "uint80",
+            },
+            {
+              internalType: "uint80",
+              name: "answeredInRound",
+              type: "uint80",
+            },
+          ],
+          name: "IncompleteRound",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidDeadline",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "int256",
+              name: "answer",
+              type: "int256",
+            },
+          ],
+          name: "InvalidPrice",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidUsdAmount",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidWorker",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "NotClient",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "NotParty",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "to",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "amountTinybar",
+              type: "uint256",
+            },
+          ],
+          name: "PayoutFailed",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "updatedAt",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "maxStalenessSeconds",
+              type: "uint256",
+            },
+          ],
+          name: "StalePrice",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "requiredTinybar",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "sentTinybar",
+              type: "uint256",
+            },
+          ],
+          name: "Underfunded",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+            {
+              internalType: "enum MilestoneEscrow.Status",
+              name: "status",
+              type: "uint8",
+            },
+          ],
+          name: "WrongStatus",
+          type: "error",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "EscrowCancelled",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "client",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "worker",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "usdMicros",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint64",
+              name: "deadline",
+              type: "uint64",
+            },
+            {
+              indexed: false,
+              internalType: "bytes32",
+              name: "referenceHash",
+              type: "bytes32",
+            },
+          ],
+          name: "EscrowCreated",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "fundedTinybar",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "priceUsed",
+              type: "uint256",
+            },
+          ],
+          name: "EscrowFunded",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "client",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amountTinybar",
+              type: "uint256",
+            },
+          ],
+          name: "EscrowRefunded",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "worker",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amountTinybar",
+              type: "uint256",
+            },
+          ],
+          name: "EscrowReleased",
+          type: "event",
+        },
+        {
+          inputs: [],
+          name: "USD_MICROS",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "cancelEscrow",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "worker",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "usdMicros",
+              type: "uint256",
+            },
+            {
+              internalType: "uint64",
+              name: "deadline",
+              type: "uint64",
+            },
+            {
+              internalType: "bytes32",
+              name: "referenceHash",
+              type: "bytes32",
+            },
+          ],
+          name: "createEscrow",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "escrowCount",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "fundEscrow",
+          outputs: [],
+          stateMutability: "payable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "getEscrow",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "address",
+                  name: "client",
+                  type: "address",
+                },
+                {
+                  internalType: "address",
+                  name: "worker",
+                  type: "address",
+                },
+                {
+                  internalType: "uint256",
+                  name: "usdMicros",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "fundedTinybar",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "fundedPrice",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint64",
+                  name: "deadline",
+                  type: "uint64",
+                },
+                {
+                  internalType: "bytes32",
+                  name: "referenceHash",
+                  type: "bytes32",
+                },
+                {
+                  internalType: "enum MilestoneEscrow.Status",
+                  name: "status",
+                  type: "uint8",
+                },
+              ],
+              internalType: "struct MilestoneEscrow.Escrow",
+              name: "",
+              type: "tuple",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "getPrice",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "price",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "updatedAt",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "maxStalenessSeconds",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "priceFeed",
+          outputs: [
+            {
+              internalType: "contract AggregatorV3Interface",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "usdMicros",
+              type: "uint256",
+            },
+          ],
+          name: "quoteHbarTinybar",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "refundExpiredEscrow",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "escrowId",
+              type: "uint256",
+            },
+          ],
+          name: "releaseEscrow",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 41309217,
     },
     MockPriceFeed: {
       address: "0x737b8F095E3c575a6Ae5FE1711AdB8F271E20269",
@@ -706,7 +1248,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 41307578,
+      deployedOnBlock: 41309214,
     },
   },
 } as const;

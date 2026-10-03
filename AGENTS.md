@@ -12,7 +12,7 @@ to an HCS topic through `POST /api/audit`. Next.js frontend, Hardhat contracts, 
 
 ## Invariants — do not break these
 
-1. **Funding always re-prices.** `fundEscrow` must obtain its amount from `quoteHbarWei`
+1. **Funding always re-prices.** `fundEscrow` must obtain its amount from `quoteHbarTinybar`
    (which calls `getPrice`) in the same transaction. Never store a creation-time HBAR amount
    and fund against it later; that deletes the point of the template.
 2. **Fresh-or-revert.** `getPrice` reverts on `answeredInRound < roundId`, `updatedAt == 0`,
@@ -27,6 +27,10 @@ to an HCS topic through `POST /api/audit`. Next.js frontend, Hardhat contracts, 
    `scripts/create-audit-topic.mjs`. Never prefix them `NEXT_PUBLIC_`, never log them, never
    put a real key in `.env.example`, the README, or `deployedContracts.ts`.
 6. **No world-writable audit topic.** Topics are created with the operator key as submit key.
+7. **Respect the Hedera unit boundary.** Inside the EVM, contract amounts are tinybar
+   (`msg.value`, balances, `call{value:}`; 1e8 per HBAR). Wallets and JSON-RPC send weibar
+   (1e18 per HBAR) on the wire and the relay converts. Convert exactly once at the client
+   wire boundary; never use `parseEther`/`formatEther` for contract-denominated amounts.
 
 ## Map
 

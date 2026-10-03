@@ -30,7 +30,7 @@ move between agreement and funding. This template makes the oracle do the work:
 | Release pays the worker the funded amount | `releasePaysWorkerFundedAmount` |
 | Only the client can release; deadline expiry refunds the client | `releaseRevertsForNonClient`, `refundAfterDeadlineReturnsClientFunds`, `refundBeforeDeadlineReverts` |
 
-**The Chainlink integration is load-bearing.** Delete the feed and `quoteHbarWei` has no
+**The Chainlink integration is load-bearing.** Delete the feed and `quoteHbarTinybar` has no
 price, `fundEscrow` cannot run, and the USD amount the worker agreed to has no HBAR
 equivalent. It is not a price ticker displayed next to the app; the contract enforces it.
 
@@ -39,7 +39,7 @@ equivalent. It is not a price ticker displayed next to the app; the contract enf
 ```
 packages/hardhat/contracts/MilestoneEscrow.sol
   createEscrow(worker, usdMicros, deadline, referenceHash)   client opens a milestone
-  quoteHbarWei(usdMicros)  -> live Chainlink price, fresh or revert
+  quoteHbarTinybar(usdMicros) -> live Chainlink price, fresh or revert
   fundEscrow(id) payable   -> re-prices, escrows the quote, refunds overpayment
   releaseEscrow(id)        -> client pays the worker
   refundExpiredEscrow(id)  -> either party refunds the client after the deadline
@@ -56,9 +56,15 @@ packages/nextjs
   app/api/audit/route.ts       POST /api/audit mirrors lifecycle events to the topic
 ```
 
-USD amounts are stored in micro-USD (`1e6` = $1.00). HBAR amounts are wei (`1e18` = 1 HBAR),
-matching Hedera JSON-RPC `msg.value` semantics. The milestone reference is stored as a
-`bytes32` hash only — the underlying document never touches the chain.
+USD amounts are stored in micro-USD (`1e6` = $1.00). Contract-side HBAR amounts are
+tinybar (`1e8` = 1 HBAR): Hedera's EVM executes `msg.value`, balances, and payouts in
+tinybar, while wallets send weibar (`1e18` = 1 HBAR) over JSON-RPC and the relay converts.
+This split was verified on Hedera testnet while building the template: a funding call for a
+$0.10 escrow sent `998525901663994467` weibar on the wire, reached the contract as
+`99852590` tinybar, and reverted `Underfunded(required=978946962415680850, sent=99852590)`
+against a wei-denominated quote. The contract now quotes and stores tinybar, and the UI
+converts to weibar exactly once when sending. The milestone reference is stored as a `bytes32`
+hash only — the underlying document never touches the chain.
 
 ## Quick start (local, offline)
 
@@ -84,8 +90,8 @@ npx hardhat test test/MilestoneEscrow.test.ts   # 12 passing
 
 ## Deploy to Hedera testnet
 
-1. Create a deployer and fund it (100 testnet HBAR, no signup — the faucet auto-creates an
-   account for an EVM address):
+1. Create a deployer and fund it with testnet HBAR (the anonymous faucet auto-creates an
+   account for an EVM address; observed issuance was 10 testnet HBAR/day on 2026-10-03):
 
    ```bash
    npm run hardhat:account:generate
@@ -107,9 +113,18 @@ npx hardhat test test/MilestoneEscrow.test.ts   # 12 passing
 
 ### Testnet proof
 
-- Contract: _filled in after the funded deployment, before submission_
-- Deployment transaction (HashScan): _pending_
-- A funding/release transaction (HashScan): _pending_
+Verified on Hedera testnet on 2026-10-03:
+
+- Contract: `0x3d2D1E677D272560FF04994098C834d42985e94b` —
+  [HashScan contract](https://hashscan.io/testnet/contract/0x3d2D1E677D272560FF04994098C834d42985e94b)
+- Deployment transaction:
+  [0xf0e340ed3c95251e2c3d7a6d3521d47acd4618a15351ba79547804cee8021bca](https://hashscan.io/testnet/transaction/0xf0e340ed3c95251e2c3d7a6d3521d47acd4618a15351ba79547804cee8021bca)
+- Proof escrow ID `0`: created for `$0.10`, funded at the live Chainlink price
+  (`price=10215058`, `funded=97894696` tinybar), then released to the worker.
+  - Create: [0x0f15b5f7608431335eaf7377293d0bb3dae0d21938d1d04ce8776e817b57595d](https://hashscan.io/testnet/transaction/0x0f15b5f7608431335eaf7377293d0bb3dae0d21938d1d04ce8776e817b57595d)
+  - Fund: [0xf0781b008253a3d0877b37f5f36bef0ddb2e7e24eef50645ec8f33cda5f30568](https://hashscan.io/testnet/transaction/0xf0781b008253a3d0877b37f5f36bef0ddb2e7e24eef50645ec8f33cda5f30568)
+  - Release: [0x9931be6d0817aacf56ece73bcf9942c8952d4eb6f54722167b544b44e4b145d2](https://hashscan.io/testnet/transaction/0x9931be6d0817aacf56ece73bcf9942c8952d4eb6f54722167b544b44e4b145d2)
+- Deployer account: `0.0.10843535` (`0x10d4B3332724F9525B964b3082CC90AC1A38C795`).
 
 ## Optional: HCS audit mirror
 
