@@ -252,6 +252,21 @@ packages/nextjs/              Next.js app, escrow UI, /api/audit HCS mirror
 AGENTS.md                     briefing for AI coding agents working in this template
 ```
 
+## Official references
+
+Every external fact this template depends on, at its canonical source:
+
+- Scaffold-HBAR (external templates, `template.json`, CLI flags):
+  https://docs.hedera.com/solutions/tools/scaffold-hbar/index
+- Chainlink price feed addresses on Hedera (HBAR/USD testnet `0x59bC…92B4a`, mainnet
+  `0xAF68…b5d5`; decimals, deviation, heartbeat):
+  https://docs.chain.link/data-feeds/price-feeds/addresses?network=hedera
+- SaucerSwap REST API (testnet base `test-api.saucerswap.finance`; note the docs state an
+  API key is required — the reference-price route fails soft if reads are ever rejected):
+  https://docs.saucerswap.finance/api-reference/overview
+- HashScan testnet explorer (contract, transaction, and topic proof linked above):
+  https://hashscan.io/testnet
+
 ## Licence
 
 MIT. The escrow, tests, UI, and docs in this repository are original work built on the
