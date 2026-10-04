@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-hbar/contract";
 const deployedContracts = {
   296: {
     MilestoneEscrow: {
-      address: "0x3d2D1E677D272560FF04994098C834d42985e94b",
+      address: "0xa7587e67546FCc219a36C4a726B532184c27af7f",
       abi: [
         {
           inputs: [
@@ -544,7 +544,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 41308974,
+      deployedOnBlock: 41328411,
     },
   },
   31337: {

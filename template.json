@@ -23,7 +23,7 @@
         "key": "PRICE_FEED_ADDRESS"
       },
       {
-        "description": "packages/hardhat/.env, optional. Max Chainlink round age accepted at funding time (default 10800). Funding reverts with StalePrice beyond this.",
+        "description": "packages/hardhat/.env, optional. Max Chainlink round age accepted at funding time (default 21600, ~2x the slowest observed testnet round gap). Funding reverts with StalePrice beyond this.",
         "key": "MAX_STALENESS_SECONDS"
       },
       {

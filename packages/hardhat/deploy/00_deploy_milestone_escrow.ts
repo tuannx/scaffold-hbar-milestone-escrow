@@ -13,7 +13,7 @@ import { getDeployGasPrice } from "../utils/getDeployGasPrice";
  *   runs offline with no credentials.
  */
 const HEDERA_TESTNET_HBAR_USD_FEED = "0x59bC155EB6c6C415fE43255aF66EcF0523c92B4a";
-const DEFAULT_MAX_STALENESS_SECONDS = 10800; // 3h template default; tune per feed heartbeat.
+const DEFAULT_MAX_STALENESS_SECONDS = 21600; // 6h: ~2x the slowest observed testnet round gap (see README).
 
 const deployMilestoneEscrow: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();

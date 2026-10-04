@@ -113,18 +113,21 @@ npx hardhat test test/MilestoneEscrow.test.ts   # 12 passing
 
 ### Testnet proof
 
-Verified on Hedera testnet on 2026-10-03:
+Verified on Hedera testnet on 2026-10-03 (times CDT):
 
-- Contract: `0x3d2D1E677D272560FF04994098C834d42985e94b` —
-  [HashScan contract](https://hashscan.io/testnet/contract/0x3d2D1E677D272560FF04994098C834d42985e94b)
+- Contract: `0xa7587e67546FCc219a36C4a726B532184c27af7f` —
+  [HashScan contract](https://hashscan.io/testnet/contract/0xa7587e67546FCc219a36C4a726B532184c27af7f)
 - Deployment transaction:
-  [0xf0e340ed3c95251e2c3d7a6d3521d47acd4618a15351ba79547804cee8021bca](https://hashscan.io/testnet/transaction/0xf0e340ed3c95251e2c3d7a6d3521d47acd4618a15351ba79547804cee8021bca)
+  [0x97fc7fd8f7f1642e1246002e109f55970c69006d7f17ef62f0fb21d5870fb721](https://hashscan.io/testnet/transaction/0x97fc7fd8f7f1642e1246002e109f55970c69006d7f17ef62f0fb21d5870fb721)
 - Proof escrow ID `0`: created for `$0.10`, funded at the live Chainlink price
-  (`price=10215058`, `funded=97894696` tinybar), then released to the worker.
-  - Create: [0x0f15b5f7608431335eaf7377293d0bb3dae0d21938d1d04ce8776e817b57595d](https://hashscan.io/testnet/transaction/0x0f15b5f7608431335eaf7377293d0bb3dae0d21938d1d04ce8776e817b57595d)
-  - Fund: [0xf0781b008253a3d0877b37f5f36bef0ddb2e7e24eef50645ec8f33cda5f30568](https://hashscan.io/testnet/transaction/0xf0781b008253a3d0877b37f5f36bef0ddb2e7e24eef50645ec8f33cda5f30568)
-  - Release: [0x9931be6d0817aacf56ece73bcf9942c8952d4eb6f54722167b544b44e4b145d2](https://hashscan.io/testnet/transaction/0x9931be6d0817aacf56ece73bcf9942c8952d4eb6f54722167b544b44e4b145d2)
+  (`price=10159039`, `funded=98434507` tinybar), then released to the worker.
+  - Create: [0xc219bf6dfa3df2fcd0b86ad6d0ac4c560a2b45329ff8ef54591f0b0d922b386b](https://hashscan.io/testnet/transaction/0xc219bf6dfa3df2fcd0b86ad6d0ac4c560a2b45329ff8ef54591f0b0d922b386b)
+  - Fund: [0x64bdb866334658485c9b43255d8a48fa540c0dda55c3fd90363564fc24e79002](https://hashscan.io/testnet/transaction/0x64bdb866334658485c9b43255d8a48fa540c0dda55c3fd90363564fc24e79002)
+  - Release: [0x6107375e2cf8c993f520998829708aab87565e1a71d0f013c098986480b64766](https://hashscan.io/testnet/transaction/0x6107375e2cf8c993f520998829708aab87565e1a71d0f013c098986480b64766)
 - Deployer account: `0.0.10843535` (`0x10d4B3332724F9525B964b3082CC90AC1A38C795`).
+- An earlier deployment (`0x3d2D1E...e94b`, 3h staleness) completed the same lifecycle;
+  it was replaced after a live `StalePrice` revert exposed the mis-calibrated window
+  (see "Freshness window" under Customising).
 
 ## Optional: HCS audit mirror
 
@@ -153,7 +156,7 @@ local development.
 | Variable | Package | Purpose |
 |---|---|---|
 | `PRICE_FEED_ADDRESS` | hardhat | Chainlink feed override (default: Hedera testnet HBAR/USD) |
-| `MAX_STALENESS_SECONDS` | hardhat | Max accepted Chainlink round age at funding (default `10800`) |
+| `MAX_STALENESS_SECONDS` | hardhat | Max accepted Chainlink round age at funding (default `21600`) |
 | `HEDERA_OPERATOR_ID` | nextjs | HCS audit operator account |
 | `HEDERA_OPERATOR_KEY` | nextjs | HCS audit operator ECDSA key, server-only |
 | `HEDERA_AUDIT_TOPIC_ID` | nextjs | HCS topic created by `audit:create-topic` |
@@ -163,9 +166,12 @@ local development.
 
 - **Different price pair:** point `PRICE_FEED_ADDRESS` at any AggregatorV3 feed; the quote
   math reads `decimals()` from the feed, so no code change is needed.
-- **Tighter freshness:** lower `MAX_STALENESS_SECONDS`. The 3h default tolerates the testnet
-  feed's update cadence. Do not raise it silently — the staleness window is the security
-  parameter of this template.
+- **Freshness window:** `MAX_STALENESS_SECONDS` defaults to 6h. Measured on Hedera testnet
+  (2026-10-03), the HBAR/USD feed posted new rounds every ~1.2–2.7h; the previous 3h default
+  reverted `StalePrice` whenever a round landed slowly — observed live at a feed age of
+  ~3h03m. 6h is ~2× the slowest observed gap. Lower it for tighter freshness; do not raise it
+  silently — the staleness window is the security parameter of this template, and mainnet
+  operators should set it from their feed's heartbeat.
 - **Mainnet:** deploy with `--network hederaMainnet` and set a mainnet feed address. The
   escrow holds real HBAR; the test suite is the specification, run it first.
 
