@@ -32,7 +32,10 @@ export async function submitAuditMessage(message: string): Promise<AuditSubmitRe
   const network = process.env.HEDERA_NETWORK === "mainnet" ? "mainnet" : "testnet";
   const client = network === "mainnet" ? Client.forMainnet() : Client.forTestnet();
   try {
-    client.setOperator(config.operatorId, config.operatorKey);
+    // Parse the key as ECDSA explicitly: passing the raw hex string to
+    // setOperator lets the SDK misread it as ED25519, which fails precheck
+    // with INVALID_SIGNATURE for EVM (ECDSA) operator accounts.
+    client.setOperator(config.operatorId, PrivateKey.fromStringECDSA(config.operatorKey));
     const submitTx = await new TopicMessageSubmitTransaction()
       .setTopicId(config.topicId)
       .setMessage(message)
@@ -60,8 +63,9 @@ export async function createAuditTopic(memo: string): Promise<string> {
   const network = process.env.HEDERA_NETWORK === "mainnet" ? "mainnet" : "testnet";
   const client = network === "mainnet" ? Client.forMainnet() : Client.forTestnet();
   try {
-    client.setOperator(operatorId, operatorKey);
-    // Operator keys for this template are ECDSA (the EVM deployer flow).
+    // Operator keys for this template are ECDSA (the EVM deployer flow); parse
+    // explicitly or the SDK misreads the hex as ED25519 and precheck fails.
+    client.setOperator(operatorId, PrivateKey.fromStringECDSA(operatorKey));
     // The submit key stops the audit topic being world-writable.
     const submitKey = PrivateKey.fromStringECDSA(operatorKey);
     const topicTx = await new TopicCreateTransaction().setTopicMemo(memo).setSubmitKey(submitKey).execute(client);

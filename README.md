@@ -15,6 +15,19 @@ npm create scaffold-hbar@latest -- --template tuannx/scaffold-hbar-milestone-esc
 That is the whole install path. Local development needs **no Hedera account and no
 credentials**: the deploy script seeds a mock Chainlink feed at $0.10 on local networks.
 
+## Demo
+
+- **Video (60s):** [demo.mp4](https://github.com/tuannx/scaffold-hbar-milestone-escrow/releases/download/demo-v1/demo.mp4)
+  — one-command scaffold, Chainlink-gated funding, the two on-chain findings below, and the
+  testnet proof. Rendered with Remotion from the verified proof data (no screen capture).
+
+![App home: live Chainlink price and escrow 0 (Released) read from the deployed testnet contract](docs/screenshots/home.png)
+
+The escrow after the lifecycle below: **Released**, $0.10 milestone funded with 0.9843 HBAR
+at the live feed price.
+
+![Escrow panel showing escrow 0 released](docs/screenshots/escrow-panel.png)
+
 ## Why this template exists
 
 Freelance and contractor milestones are quoted in fiat but settled in crypto. The naive
@@ -47,14 +60,25 @@ packages/hardhat/contracts/MilestoneEscrow.sol
 
 Chainlink AggregatorV3 (HBAR/USD)             Hedera services in play
   testnet 0x59bC155EB6c6C415fE43255aF66EcF0523c92B4a   Solidity escrow contract on Hedera
-  (verified live 2026-10-03, see below)                  HCS topic audit mirror (optional)
+  (verified live 2026-10-03, see below)                  HCS topic audit mirror (optional,
+                                                         proven live 0.0.10856884)
 
 packages/nextjs
   app/page.tsx                 price card, create form, fund/release panel
   components/milestone/*       the escrow UI (scaffold hooks, no raw wagmi calls)
   services/hedera/auditLog.ts  server-side HCS submit (fail-soft when unconfigured)
   app/api/audit/route.ts       POST /api/audit mirrors lifecycle events to the topic
+  app/api/dex/route.ts         GET /api/dex read-only SaucerSwap reference price
 ```
+
+Second ecosystem leg (read-only): SaucerSwap's testnet REST API
+(`test-api.saucerswap.finance`) prices WHBAR. `GET /api/dex` proxies it server-side and
+the UI shows it next to the Chainlink price as an independent cross-check. The token id is
+pinned (`0.0.15058`, WHBAR[new] — never a symbol lookup; spoof "HBAR" tokens exist).
+Verified live on 2026-10-04: `priceUsd` 0.10150087 against the Chainlink $0.1015 above.
+Honesty notes: keyless reads worked at that time, but SaucerSwap's docs state an API key
+is required, so the UI fails soft and hides the figure if the call ever errors; and the
+figure is an API reference price for display only — it is never fed into funding math.
 
 USD amounts are stored in micro-USD (`1e6` = $1.00). Contract-side HBAR amounts are
 tinybar (`1e8` = 1 HBAR): Hedera's EVM executes `msg.value`, balances, and payouts in
@@ -71,7 +95,7 @@ hash only — the underlying document never touches the chain.
 Prerequisites: Node `>=20.18.3`, npm, git.
 
 ```bash
-npm create scaffold-hbar@latest -- my-escrow --template tuannx/scaffold-hbar-milestone-escrow --ci --solidity-framework hardhat --package-manager npm
+npm create scaffold-hbar@latest my-escrow -- --template tuannx/scaffold-hbar-milestone-escrow --ci --solidity-framework hardhat --package-manager npm
 cd my-escrow
 
 npm run hardhat:chain                       # local Hedera-forked node, terminal 1
@@ -87,6 +111,20 @@ deterministic and offline:
 cd packages/hardhat
 npx hardhat test test/MilestoneEscrow.test.ts   # 12 passing
 ```
+
+## Verify this template (the bounty gate, self-check)
+
+`scripts/verify-template.sh` runs the eligibility gate the way a judge would — fresh
+scaffold from GitHub, then install, lint, tests, build, and a boot probe:
+
+```bash
+scripts/verify-template.sh                      # this repo
+scripts/verify-template.sh your-org/your-fork   # after forking
+```
+
+These exact steps were run green against the published repo on 2026-10-03/04 (G1/G4/G5);
+the script simply makes them one command. The on-chain items (G6 testnet proof, G2/G3/G7/G8)
+are evidenced below and in the repo history.
 
 ## Deploy to Hedera testnet
 
@@ -146,7 +184,15 @@ npm run audit:create-topic -w @sh/nextjs   # prints HEDERA_AUDIT_TOPIC_ID=0.0.x
 The topic is created with the operator as **submit key** — a keyless topic would be
 world-writable and worthless as an audit log. With nothing configured, `GET /api/audit`
 returns `{ "configured": false }` and the UI simply skips mirroring. Keys are read on the
-server only and never reach the browser.
+server only and never reach the browser. The operator key must be parsed as ECDSA
+(`PrivateKey.fromStringECDSA`); passing the raw hex lets the SDK misread it as ED25519 and
+topic creation fails precheck with `INVALID_SIGNATURE` — found and fixed while proving this
+flow on testnet.
+
+**Live on testnet:** topic
+[`0.0.10856884`](https://hashscan.io/testnet/topic/0.0.10856884) carries sequence 1 mirroring
+the escrow-0 release above (`EscrowReleased escrowId=0 tx=0x610737...6766`), written through
+this template's own `POST /api/audit` route and readable from any mirror node.
 
 ## Environment variables
 
@@ -174,6 +220,15 @@ local development.
   operators should set it from their feed's heartbeat.
 - **Mainnet:** deploy with `--network hederaMainnet` and set a mainnet feed address. The
   escrow holds real HBAR; the test suite is the specification, run it first.
+  Mainnet readiness (prepared, not deployed — no mainnet deployment has been run from
+  this template): the Chainlink HBAR/USD proxy on Hedera mainnet is
+  `0xAF685FB45C12b92b5054ccb9313e135525F9b5d5`, verified live on 2026-10-04 via mainnet
+  Hashio `latestRoundData` (answer 10151915 = $0.10151915, 8 decimals, fresh round; source:
+  Chainlink docs feed directory, cross-checked on-chain). So:
+  `PRICE_FEED_ADDRESS=0xAF685FB45C12b92b5054ccb9313e135525F9b5d5 npm run hardhat:deploy -- --network hederaMainnet`.
+  Two mainnet-specific notes: the deployer must be a funded mainnet account (the key is
+  read from runtime env, never committed), and the 6h staleness default was calibrated on
+  testnet round cadence — measure the mainnet feed before tightening or loosening it.
 
 ## Limitations (stated, not hidden)
 

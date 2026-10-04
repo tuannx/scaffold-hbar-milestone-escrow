@@ -3,6 +3,7 @@
 import type { NextPage } from "next";
 import { useAccount } from "wagmi";
 import { CreateEscrowForm } from "~~/components/milestone/CreateEscrowForm";
+import { DexPriceCard } from "~~/components/milestone/DexPriceCard";
 import { EscrowPanel, LivePriceCard } from "~~/components/milestone/EscrowPanel";
 import { HederaAddress } from "~~/components/scaffold-hbar";
 import { useTargetNetwork } from "~~/hooks/scaffold-hbar";
@@ -34,6 +35,7 @@ const Home: NextPage = () => {
 
       <div className="w-full max-w-4xl mx-auto px-5 py-8 space-y-6">
         <LivePriceCard />
+        <DexPriceCard />
         <CreateEscrowForm />
         <EscrowPanel />
         <div className="card bg-base-100 shadow-xl">
@@ -54,6 +56,11 @@ const Home: NextPage = () => {
                 <strong>HCS audit topic (optional)</strong> mirrors those events to a Hedera Consensus Service topic via{" "}
                 <code>POST /api/audit</code> when an operator is configured, so auditors can read a consensus-ordered
                 log from any mirror node. Off by default; the app runs on contract events alone.
+              </li>
+              <li>
+                <strong>SaucerSwap (read-only reference)</strong> shows the testnet DEX price of WHBAR next to the
+                Chainlink price as an independent cross-check. It prices nothing: the integration is display-only
+                and funding always uses Chainlink.
               </li>
               <li>
                 Local development needs no account: the deploy script seeds a mock feed at $0.10 on local networks.

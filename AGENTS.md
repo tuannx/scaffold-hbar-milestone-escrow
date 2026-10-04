@@ -31,6 +31,9 @@ to an HCS topic through `POST /api/audit`. Next.js frontend, Hardhat contracts, 
    (`msg.value`, balances, `call{value:}`; 1e8 per HBAR). Wallets and JSON-RPC send weibar
    (1e18 per HBAR) on the wire and the relay converts. Convert exactly once at the client
    wire boundary; never use `parseEther`/`formatEther` for contract-denominated amounts.
+8. **SaucerSwap is display-only.** The `/api/dex` reference price (testnet WHBAR, token id
+   pinned at `0.0.15058` — never a symbol lookup) must never feed contract calls, quotes,
+   or funding math. Chainlink is the only pricing source.
 
 ## Map
 
@@ -43,6 +46,7 @@ to an HCS topic through `POST /api/audit`. Next.js frontend, Hardhat contracts, 
 | Tests (the spec) | `packages/hardhat/test/MilestoneEscrow.test.ts` |
 | UI | `packages/nextjs/app/page.tsx`, `packages/nextjs/components/milestone/*` |
 | HCS mirror | `packages/nextjs/services/hedera/auditLog.ts`, `packages/nextjs/app/api/audit/route.ts` |
+| DEX reference | `packages/nextjs/app/api/dex/route.ts`, `packages/nextjs/components/milestone/DexPriceCard.tsx` |
 | Topic setup | `packages/nextjs/scripts/create-audit-topic.mjs` |
 | Manifest | `template.json` (validated by the create-scaffold-hbar CLI schema) |
 
@@ -64,6 +68,7 @@ cd packages/hardhat && npx hardhat test test/MilestoneEscrow.test.ts
 npm run lint                                  # both workspaces
 npm run next:check-types && npm run next:build
 npm run audit:create-topic -w @sh/nextjs      # one-time HCS topic (needs operator env)
+scripts/verify-template.sh                    # the full gate: fresh scaffold + install/lint/test/build/boot
 ```
 
 Hooks in this codebase: `useScaffoldReadContract`, `useScaffoldWriteContract`,

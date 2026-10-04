@@ -29,7 +29,9 @@ if (!operatorId || !operatorKey) {
 
 const client = process.env.HEDERA_NETWORK === "mainnet" ? Client.forMainnet() : Client.forTestnet();
 try {
-  client.setOperator(operatorId, operatorKey);
+  // Parse as ECDSA explicitly: a raw hex string lets the SDK misread the key
+  // as ED25519, which fails precheck (INVALID_SIGNATURE) for EVM accounts.
+  client.setOperator(operatorId, PrivateKey.fromStringECDSA(operatorKey));
   const submitKey = PrivateKey.fromStringECDSA(operatorKey);
   const tx = await new TopicCreateTransaction()
     .setTopicMemo("MilestoneEscrow audit log")
